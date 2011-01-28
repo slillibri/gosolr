@@ -1,2 +1,4 @@
 *.out
 *.6
+gosolr
+_obj/

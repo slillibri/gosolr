@@ -1,3 +1,7 @@
+//This is a monolithic proxy I am writing for a solr-as-service thing I am working on
+//Probably unnecessary but it's fun learning new languages.
+//Note, probably nothing in this is the Go way
+
 package main
 
 import (
@@ -8,7 +12,16 @@ import (
     "os"
 )
 
+//Check the API key in the request and process the search
+//  otherwise return 404
 func getSearch() {
+    
+}
+
+//Check API key in the request and process the post
+//Set the index request on the queue to be processed and return OK
+//AFIK, there is no AMQP or Stomp client for Go yet, so more fun :)
+func postIndex() {
     
 }
 
@@ -48,6 +61,7 @@ func getValue(config *conf.ConfigFile, key string) string {
     // I am a retarded function to save typeing...
     str, err := config.GetString("", key)
     if err != nil {
+	//Exit if we can't find an expected value (these are all in the default namespace)
         fmt.Printf("Error getting %s: %s\n", key, err.String())
         os.Exit(1)
     }
