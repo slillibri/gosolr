@@ -11,6 +11,7 @@ import (
     "http"
     "fmt"
     "os"
+    l4g "log4go.googlecode.com/svn/stable"
 )
 
 var(
@@ -24,10 +25,12 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
     if req.Method == "GET" {        
         //Need to have some cleanup and validation here
         solrUrl := fmt.Sprintf("http://%s/solr/%s/select/?%s", solrServers[apiKey]["server"], solrServers[apiKey]["core"], req.URL.RawQuery)
-        fmt.Printf("Proxying Request to %s for %s\n", solrUrl, apiKey)
+        l4g.Debug("Proxying Request to %s for %s", solrUrl, apiKey)
+        // fmt.Printf("Proxying Request to %s for %s\n", solrUrl, apiKey)
         
         r, _, err := http.Get(solrUrl)
         if err != nil {
+            //Set actual error page here
             fmt.Fprintf(w, "Error: %s", err.String())
             return
         }
@@ -47,7 +50,8 @@ func main() {
     config = loadConfig(configPath)
     
     //Load solr servers/cores from mysql db
-    solrServers = loadSolrServers(config)
+    solrServers = make(map[string]map[string]string)
+    loadSolrServers(config)
     prettyPrint(solrServers)
     
     //Setup the http proxy stuff
@@ -59,7 +63,7 @@ func main() {
     server := fmt.Sprintf("%s:%s", config["host"], config["port"])
     
     if err := http.ListenAndServe(server, nil); err != nil {
-        fmt.Printf("error starting server: %s", err.String())
+        l4g.Error("Error starting server: %s", err.String())
         os.Exit(1)
     }
 }
@@ -68,7 +72,7 @@ func main() {
 func loadConfig(file string) (map[string]string) {
     config, err := conf.ReadConfigFile(file)
     if err != nil {
-        fmt.Printf("error reading config: %s\n", err.String())
+        l4g.Error("Error reading config: %s", err.String())
         os.Exit(1)
     }
     
@@ -86,8 +90,8 @@ func getValue(config *conf.ConfigFile, key string) string {
     // I am a retarded function to save typeing...
     str, err := config.GetString("", key)
     if err != nil {
-	//Exit if we can't find an expected value (these are all in the default namespace)
-        fmt.Printf("Error getting %s: %s\n", key, err.String())
+        //Exit if we can't find an expected value (these are all in the default namespace)
+        l4g.Error("Error getting %s: %s", key, err.String())
         os.Exit(1)
     }
     return str
@@ -95,16 +99,16 @@ func getValue(config *conf.ConfigFile, key string) string {
 
 //Pull information from MySQL to find out which API keys we should handle and how they map
 //  i.e. servers and cores
-func loadSolrServers(config map[string]string) (map[string]map[string]string) {
+func loadSolrServers(config map[string]string) {
     db := mysql.New()
-    fmt.Printf("db_host: %s\n", config["db_host"])
+    l4g.Debug("db_host: %s", config["db_host"])
     if err := db.Connect(config["db_host"], config["db_user"], config["db_pass"], config["db_name"]); err != nil {
-        fmt.Printf("Error connecting to db: %s\n%s\n", err.String(), db.Error)
+        l4g.Error("Error connecting to db: %s\n%s", err.String(), db.Error)
         os.Exit(1)
     }
     stmt, err := db.InitStmt()
     if err != nil {
-        fmt.Printf("Error initializing stmt: %s\n", err.String())
+        l4g.Error("Error initializing stmt: %s", err.String())
         os.Exit(1)
     }
     
@@ -114,24 +118,23 @@ func loadSolrServers(config map[string]string) (map[string]map[string]string) {
     
     res, err := stmt.Execute()
     if err != nil { 
-        fmt.Printf("error executing stmt: %s", err.String())
+        l4g.Error("error executing stmt: %s", err.String())
     }    
     
-    solr_cores := make(map[string]map[string]string)
+    solrServers = make(map[string]map[string]string)
     var row map[string]interface{}
     
     for {
         if row = res.FetchMap(); row == nil {
+            //Read the last row
             break
         }
         //This cannot possibly be right...
         apistring := fmt.Sprintf("%s", row["apistring"])
         core := fmt.Sprintf("%s", row["core"])
         server := fmt.Sprintf("%s", row["server"])
-        solr_cores[apistring] = map[string]string{"core":core, "server":server}
+        solrServers[apistring] = map[string]string{"core":core, "server":server}
     }
-
-    return solr_cores
 }
 
 func prettyPrint(printMap map[string]map[string]string) {
