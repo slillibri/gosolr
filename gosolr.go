@@ -27,7 +27,7 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
         r, _, err := http.Get(solrUrl)
         if err != nil {
             //Set actual error page here
-            l4g.Error(w, "Error: %s\n", err.String())
+            l4g.Error("Error: %s\n", err.String())
             return
         }
         r.Write(w)
@@ -39,6 +39,9 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
+    //Load logging configuration
+    l4g.LoadConfiguration("logging.xml")
+    
     //Load default config file
     var configPath string
     flag.StringVar(&configPath, "config", "/etc/gosolr/gosolr.cfg", "Path to the configuration file")
