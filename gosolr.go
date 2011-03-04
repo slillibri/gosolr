@@ -22,12 +22,12 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
     if req.Method == "GET" {        
         //Need to have some cleanup and validation here
         solrUrl := fmt.Sprintf("http://%s/solr/%s/select/?%s", solrServers[apiKey]["server"], solrServers[apiKey]["core"], req.URL.RawQuery)
-        fmt.Printf("Proxying Request to %s for %s\n", solrUrl, apiKey)
+        l4g.Debug("Proxying Request to %s for %s\n", solrUrl, apiKey)
         
         r, _, err := http.Get(solrUrl)
         if err != nil {
             //Set actual error page here
-            fmt.Fprintf(w, "Error: %s\n", err.String())
+            l4g.Error(w, "Error: %s\n", err.String())
             return
         }
         r.Write(w)

@@ -3,8 +3,8 @@ package main
 import(
     "mysql"
     "conf"
-    "fmt"
     "os"
+    l4g "log4go.googlecode.com/svn/stable"
 )
 
 type SolrData struct {
@@ -17,7 +17,7 @@ type SolrData struct {
 func loadConfig(file string) (map[string]string) {
     config, err := conf.ReadConfigFile(file)
     if err != nil {
-        fmt.Printf("error reading config: %s\n", err.String())
+        l4g.Error("error reading config: %s\n", err.String())
         os.Exit(1)
     }
     
@@ -36,7 +36,7 @@ func getValue(config *conf.ConfigFile, key string) string {
     str, err := config.GetString("", key)
     if err != nil {
 	//Exit if we can't find an expected value (these are all in the default namespace)
-        fmt.Printf("Error getting %s: %s\n", key, err.String())
+        l4g.Error("Error getting %s: %s\n", key, err.String())
         os.Exit(1)
     }
     return str
@@ -45,15 +45,15 @@ func getValue(config *conf.ConfigFile, key string) string {
 //Pull information from MySQL to find out which API keys we should handle and how they map
 //  i.e. servers and cores
 func loadSolrServers(config map[string]string) (map[string]map[string]string){
-    fmt.Printf("db_host: %s\n", config["db_host"])
+    l4g.Debug("db_host: %s\n", config["db_host"])
     db, err := mysql.DialTCP(config["db_host"], config["db_user"], config["db_pass"], config["db_name"])
     if err != nil {
-        fmt.Printf("Error connecting to db: %s\n", err.String())
+        l4g.Error("Error connecting to db: %s\n", err.String())
         os.Exit(1)
     }
     stmt, err := db.Prepare("Select apistring,core,server from cores where gosolr = ?")
     if err != nil {
-        fmt.Printf("Error preparing statement: %s", err.String())
+        l4g.Error("Error preparing statement: %s", err.String())
         os.Exit(1)
     }
     
@@ -61,7 +61,8 @@ func loadSolrServers(config map[string]string) (map[string]map[string]string){
     
     err = stmt.Execute()
     if err != nil { 
-        fmt.Printf("error executing stmt: %s", err.String())
+        l4g.Error("error executing stmt: %s", err.String())
+        os.Exit(1)
     }    
     
     var solrrow SolrData
@@ -71,7 +72,8 @@ func loadSolrServers(config map[string]string) (map[string]map[string]string){
     for {
         eof, err := stmt.Fetch()
         if err != nil {
-            fmt.Printf("Error fetching row: %s", err.String())
+            l4g.Error("Error fetching row: %s", err.String())
+            os.Exit(1)
         }
         
         solr_values[solrrow.apistring] = map[string]string{"core":solrrow.core, "server":solrrow.server}
