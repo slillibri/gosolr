@@ -4,7 +4,7 @@ import(
     "mysql"
     "conf"
     "os"
-    l4g "log4go.googlecode.com/svn/stable"
+    l4g "log4go.googlecode.com/hg"
 )
 
 type SolrData struct {
@@ -23,21 +23,36 @@ func loadConfig(file string) (map[string]string) {
     
     //Setup configuration values
     values := make(map[string]string)
-    keys := []string{"host", "port", "db_host", "db_port", "db_user", "db_pass", "db_name"}
+    //Setup some default values
+    values["host"] = "localhost"
+    values["port"] = "80"
+    values["read_timeout"] = "0"
+    values["write_timeout"] = "0"
+
+    keys := []string{"host", "port", "db_host", "db_port", "db_user", "db_pass", "db_name", "read_timeout", "write_timeout"}
     for i := 0; i < len(keys); i++ {
-        values[keys[i]] = getValue(config, keys[i])
+        if _, ok := values[keys[i]]; ok {
+            set := getValue(config, keys[i], false)
+            if set != "" {
+                values[keys[i]] = set
+            }
+        } else {
+            values[keys[i]] = getValue(config, keys[i], true)
+        }
     }
     
     return values
 }
 
-func getValue(config *conf.ConfigFile, key string) string {
-    // I am a retarded function to save typeing...
+func getValue(config *conf.ConfigFile, key string, fail bool) string {
+    // I am a retarded function to save typeing...    
     str, err := config.GetString("", key)
     if err != nil {
-	//Exit if we can't find an expected value (these are all in the default namespace)
-        l4g.Error("Error getting %s: %s\n", key, err.String())
-        os.Exit(1)
+        if fail {
+	        //Exit if we can't find an expected value (these are all in the default namespace)
+            l4g.Error("Error getting %s: %s\n", key, err.String())
+            os.Exit(1)
+        }
     }
     return str
 }

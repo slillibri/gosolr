@@ -8,14 +8,23 @@ import (
     "flag"
     "http"
     "fmt"
+    "io"
+    "json"
     "os"
-    l4g "log4go.googlecode.com/svn/stable"
+    "strconv"
+    l4g "log4go.googlecode.com/hg"
 )
 
 var(
     config map[string]string
     solrServers map[string]map[string]string
 )
+
+type SolrPost struct{
+    Apikey  string
+    Body    string
+    
+}
 
 func handleRequest(w http.ResponseWriter, req *http.Request) {
     apiKey := req.URL.Path[1:]
@@ -33,7 +42,41 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
         r.Write(w)
     }
     if req.Method == "POST" {
-        //Handle indexing here. UserAuth? This will basically just set the post body into the queue
+        header := req.Header
+        
+        //Reject non-json data
+        ct := header["Content-Type"][0]
+        if ct != "application/json" {
+            l4g.Error("Unsupported Content type %s", ct)
+            http.Error(w, "501 Unsupported format", 501)
+            return
+        }
+        
+        //Handle length check
+        length, _ := strconv.Atoi(header["Content-Length"][0])
+        if length > 1024*1024 {
+            l4g.Error("Post too large: %d", length)
+            http.Error(w, "501 Post too large", 501)
+            return
+        }
+        l4g.Debug("Post content-length: %d", length)
+        
+        //TODO handle this error condition.
+        body := make([]byte, length)
+        len, _ := io.ReadFull(req.Body, body)
+        l4g.Debug("io.ReadFull read %d bytes", len)
+
+        var message SolrPost
+        json.Unmarshal(body, &message)
+        l4g.Debug("JSON message body: %s", message.Body)
+        
+        req.Body.Close()
+        
+        //Post message to queue
+        
+        //Return result to client
+        resp := fmt.Sprintf("Post content %s", body)
+        http.Error(w, resp, 501)
     }
     
 }
@@ -58,9 +101,14 @@ func main() {
         http.HandleFunc(urlPath, handleRequest)
     }
     
-    server := fmt.Sprintf("%s:%s", config["host"], config["port"])
+    var srv http.Server
+    srv.Addr = fmt.Sprintf("%s:%s", config["host"], config["port"])
+    srv.Handler = nil
+    srv.ReadTimeout, _ = strconv.Atoi64(config["read_timeout"])
+    srv.WriteTimeout, _ = strconv.Atoi64(config["write_timeout"])
     
-    if err := http.ListenAndServe(server, nil); err != nil {
+    l4g.Debug("%s", srv.Addr)
+    if err := srv.ListenAndServe(); err != nil {
         l4g.Error("Error starting server: %s", err.String())
         os.Exit(1)
     }
