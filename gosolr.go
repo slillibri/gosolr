@@ -31,15 +31,19 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
     if req.Method == "GET" {        
         //Need to have some cleanup and validation here
         solrUrl := fmt.Sprintf("http://%s/solr/%s/select/?%s", solrServers[apiKey]["server"], solrServers[apiKey]["core"], req.URL.RawQuery)
-        l4g.Debug("Proxying Request to %s for %s\n", solrUrl, apiKey)
+        l4g.Debug("Proxying Request to %s for %s", solrUrl, apiKey)
         
         r, _, err := http.Get(solrUrl)
+        l4g.Debug("Tomcat response: %s", r.Status)
+        
         if err != nil {
             //Set actual error page here
             l4g.Error("Error: %s\n", err.String())
+            http.Error(w, "500 Internal Server Error", 500)
             return
         }
         r.Write(w)
+        r.Body.Close()
     }
     if req.Method == "POST" {
         header := req.Header
@@ -48,7 +52,7 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
         ct := header["Content-Type"][0]
         if ct != "application/json" {
             l4g.Error("Unsupported Content type %s", ct)
-            http.Error(w, "501 Unsupported format", 501)
+            http.Error(w, "400 Unsupported format", 400)
             return
         }
         
@@ -56,7 +60,7 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
         length, _ := strconv.Atoi(header["Content-Length"][0])
         if length > 1024*1024 {
             l4g.Error("Post too large: %d", length)
-            http.Error(w, "501 Post too large", 501)
+            http.Error(w, "400 Post too large", 400)
             return
         }
         l4g.Debug("Post content-length: %d", length)
