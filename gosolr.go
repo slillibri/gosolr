@@ -12,6 +12,8 @@ import (
     "json"
     "os"
     "strconv"
+    "stomp"
+    "net"
     l4g "log4go.googlecode.com/hg"
 )
 
@@ -28,12 +30,14 @@ type SolrPost struct{
 
 func handleRequest(w http.ResponseWriter, req *http.Request) {
     apiKey := req.URL.Path[1:]
-    if req.Method == "GET" {        
+    if req.Method == "GET" {
         //Need to have some cleanup and validation here
         solrUrl := fmt.Sprintf("http://%s/solr/%s/select/?%s", solrServers[apiKey]["server"], solrServers[apiKey]["core"], req.URL.RawQuery)
         l4g.Debug("Proxying Request to %s for %s", solrUrl, apiKey)
         
         r, _, err := http.Get(solrUrl)
+        defer r.Body.Close()
+        
         l4g.Debug("Tomcat response: %s", r.Status)
         
         if err != nil {
@@ -43,7 +47,7 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
             return
         }
         r.Write(w)
-        r.Body.Close()
+        return
     }
     if req.Method == "POST" {
         header := req.Header
@@ -74,9 +78,17 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
         json.Unmarshal(body, &message)
         l4g.Debug("JSON message body: %s", message.Body)
         
-        req.Body.Close()
-        
         //Post message to queue
+        nc, err := net.Dial("tcp", "", config["stomp_server"])
+        if err != nil {
+            l4g.Error("Error conneceting to queue %s", err.String())
+            return
+        }
+        c := stomp.Connect(nc, nil)
+        queue := fmt.Sprintf("/queue/%s", message.Apikey)
+        l4g.Debug("Posting %s to queue %s", message.Body, queue)
+        c.Send(queue, message.Body)
+        c.Disconnect()
         
         //Return result to client
         resp := fmt.Sprintf("Post content %s", body)

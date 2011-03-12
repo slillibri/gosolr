@@ -29,7 +29,8 @@ func loadConfig(file string) (map[string]string) {
     values["read_timeout"] = "0"
     values["write_timeout"] = "0"
 
-    keys := []string{"host", "port", "db_host", "db_port", "db_user", "db_pass", "db_name", "read_timeout", "write_timeout"}
+    //TODO move stuff out of the default namespace
+    keys := []string{"host", "port", "db_host", "db_port", "db_user", "db_pass", "db_name", "read_timeout", "write_timeout", "stomp_server"}
     for i := 0; i < len(keys); i++ {
         if _, ok := values[keys[i]]; ok {
             set := getValue(config, keys[i], false)
