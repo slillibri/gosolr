@@ -26,12 +26,7 @@ func loadConfig(file string) (map[string]map[string]string) {
     
     //Setup some default values - these are in the default namespace
     //There are 3 configuration namespaces default, database, and stomp
-    //Really? 
-    values["default"] = make(map[string]string)
-    values["default"]["host"] = "localhost" //= map[string]string{"host": "localhost"}
-    values["default"]["port"] = "80" //= map[string]string{"post": "80"}
-    values["default"]["read_timeout"] = "0" //= map[string]string{"read_timeout": "0"}
-    values["default"]["write_timeout"] = "0"  //= map[string]string{"write_timeoute": "0"}
+    values["default"] = map[string]string{"host":"localhost", "port":"80", "read_timeout":"0", "write_timeout":"0"}
     l4g.Debug("Default vals: %v", values)
     
     //TODO move stuff out of the default namespace
@@ -50,17 +45,14 @@ func loadConfig(file string) (map[string]map[string]string) {
 }
 
 func fetchKeys(keys []string, namespace string, config *conf.ConfigFile, values map[string]map[string]string) {
-    l4g.Debug("%v", values)
     for i := 0; i < len(keys); i++ {
-        l4g.Debug("Testing namespace %s", namespace)
         //Test if namespace exists, otherwise create it
         if _, ns := values[namespace]; !ns {
             l4g.Debug("Creating map for namespace %s", namespace)
             values[namespace] = make(map[string]string)
         }
         //If there is a default value it's ok if the config key doesn't exist
-        val, ok := values[namespace][keys[i]]
-        l4g.Debug("Testing %s[%s] for default: %s", namespace, keys[i], val)
+        _, ok := values[namespace][keys[i]]
         if ok {
             set := getValue(config, keys[i], namespace, false)
             if set != "" {
