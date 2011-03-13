@@ -14,7 +14,7 @@ type SolrData struct {
 }
 
 //Move these into a different package?
-func loadConfig(file string) (map[string]string) {
+func loadConfig(file string) (map[string]map[string]string) {
     config, err := conf.ReadConfigFile(file)
     if err != nil {
         l4g.Error("error reading config: %s\n", err.String())
@@ -22,32 +22,59 @@ func loadConfig(file string) (map[string]string) {
     }
     
     //Setup configuration values
-    values := make(map[string]string)
-    //Setup some default values
-    values["host"] = "localhost"
-    values["port"] = "80"
-    values["read_timeout"] = "0"
-    values["write_timeout"] = "0"
-
-    //TODO move stuff out of the default namespace
-    keys := []string{"host", "port", "db_host", "db_port", "db_user", "db_pass", "db_name", "read_timeout", "write_timeout", "stomp_server"}
-    for i := 0; i < len(keys); i++ {
-        if _, ok := values[keys[i]]; ok {
-            set := getValue(config, keys[i], false)
-            if set != "" {
-                values[keys[i]] = set
-            }
-        } else {
-            values[keys[i]] = getValue(config, keys[i], true)
-        }
-    }
+    values := make(map[string]map[string]string)
     
+    //Setup some default values - these are in the default namespace
+    //There are 3 configuration namespaces default, database, and stomp
+    //Really? 
+    values["default"] = make(map[string]string)
+    values["default"]["host"] = "localhost" //= map[string]string{"host": "localhost"}
+    values["default"]["port"] = "80" //= map[string]string{"post": "80"}
+    values["default"]["read_timeout"] = "0" //= map[string]string{"read_timeout": "0"}
+    values["default"]["write_timeout"] = "0"  //= map[string]string{"write_timeoute": "0"}
+    l4g.Debug("Default vals: %v", values)
+    
+    //TODO move stuff out of the default namespace
+    //Fetch default keys
+    keys := []string{"host", "port", "read_timeout", "write_timeout"}
+    fetchKeys(keys, "default", config, values)
+    
+    db_keys := []string{"host", "port", "user", "pass", "name"}
+    fetchKeys(db_keys, "database", config, values)
+    
+    stomp_keys := []string{"host"}
+    fetchKeys(stomp_keys, "stomp", config, values)
+    
+    l4g.Debug("Final values: %v", values)
     return values
 }
 
-func getValue(config *conf.ConfigFile, key string, fail bool) string {
+func fetchKeys(keys []string, namespace string, config *conf.ConfigFile, values map[string]map[string]string) {
+    l4g.Debug("%v", values)
+    for i := 0; i < len(keys); i++ {
+        l4g.Debug("Testing namespace %s", namespace)
+        //Test if namespace exists, otherwise create it
+        if _, ns := values[namespace]; !ns {
+            l4g.Debug("Creating map for namespace %s", namespace)
+            values[namespace] = make(map[string]string)
+        }
+        //If there is a default value it's ok if the config key doesn't exist
+        val, ok := values[namespace][keys[i]]
+        l4g.Debug("Testing %s[%s] for default: %s", namespace, keys[i], val)
+        if ok {
+            set := getValue(config, keys[i], namespace, false)
+            if set != "" {
+                values[namespace][keys[i]] = set
+            }
+        } else {
+            values[namespace][keys[i]] = getValue(config, keys[i], namespace, true)
+        }
+    }    
+}
+
+func getValue(config *conf.ConfigFile, key string, namespace string, fail bool) string {
     // I am a retarded function to save typeing...    
-    str, err := config.GetString("", key)
+    str, err := config.GetString(namespace, key)
     if err != nil {
         if fail {
 	        //Exit if we can't find an expected value (these are all in the default namespace)
@@ -60,9 +87,8 @@ func getValue(config *conf.ConfigFile, key string, fail bool) string {
 
 //Pull information from MySQL to find out which API keys we should handle and how they map
 //  i.e. servers and cores
-func loadSolrServers(config map[string]string) (map[string]map[string]string){
-    l4g.Debug("db_host: %s\n", config["db_host"])
-    db, err := mysql.DialTCP(config["db_host"], config["db_user"], config["db_pass"], config["db_name"])
+func loadSolrServers(config map[string]map[string]string) (map[string]map[string]string){
+    db, err := mysql.DialTCP(config["database"]["host"], config["database"]["user"], config["database"]["pass"], config["database"]["name"])
     if err != nil {
         l4g.Error("Error connecting to db: %s\n", err.String())
         os.Exit(1)
@@ -73,7 +99,7 @@ func loadSolrServers(config map[string]string) (map[string]map[string]string){
         os.Exit(1)
     }
     
-    stmt.BindParams(config["host"])
+    stmt.BindParams(config["default"]["host"])
     
     err = stmt.Execute()
     if err != nil { 

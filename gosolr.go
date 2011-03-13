@@ -18,7 +18,7 @@ import (
 )
 
 var(
-    config map[string]string
+    config map[string]map[string]string
     solrServers map[string]map[string]string
 )
 
@@ -79,7 +79,7 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
         l4g.Debug("JSON message body: %s", message.Body)
         
         //Post message to queue
-        nc, err := net.Dial("tcp", "", config["stomp_server"])
+        nc, err := net.Dial("tcp", "", config["stomp"]["host"])
         if err != nil {
             l4g.Error("Error conneceting to queue %s", err.String())
             return
@@ -118,10 +118,10 @@ func main() {
     }
     
     var srv http.Server
-    srv.Addr = fmt.Sprintf("%s:%s", config["host"], config["port"])
+    srv.Addr = fmt.Sprintf("%s:%s", config["default"]["host"], config["default"]["port"])
     srv.Handler = nil
-    srv.ReadTimeout, _ = strconv.Atoi64(config["read_timeout"])
-    srv.WriteTimeout, _ = strconv.Atoi64(config["write_timeout"])
+    srv.ReadTimeout, _ = strconv.Atoi64(config["default"]["read_timeout"])
+    srv.WriteTimeout, _ = strconv.Atoi64(config["default"]["write_timeout"])
     
     l4g.Debug("%s", srv.Addr)
     if err := srv.ListenAndServe(); err != nil {
