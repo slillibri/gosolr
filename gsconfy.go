@@ -11,6 +11,7 @@ type SolrData struct {
     apistring   string
     core        string
     server      string
+    authstring  string
 }
 
 //Move these into a different package?
@@ -27,6 +28,8 @@ func loadConfig(file string) (map[string]map[string]string) {
     //Setup some default values - these are in the default namespace
     //There are 3 configuration namespaces default, database, and stomp
     values["default"] = map[string]string{"host":"localhost", "port":"80", "read_timeout":"0", "write_timeout":"0"}
+    values["database"] = map[string]string{"host":"localhost", "port":"3306"}
+
     l4g.Debug("Default vals: %v", values)
     
     //TODO move stuff out of the default namespace
@@ -34,9 +37,11 @@ func loadConfig(file string) (map[string]map[string]string) {
     keys := []string{"host", "port", "read_timeout", "write_timeout"}
     fetchKeys(keys, "default", config, values)
     
+    //Fetch the db keys
     db_keys := []string{"host", "port", "user", "pass", "name"}
     fetchKeys(db_keys, "database", config, values)
     
+    //Fetch the stomp keys
     stomp_keys := []string{"host"}
     fetchKeys(stomp_keys, "stomp", config, values)
     
@@ -85,7 +90,7 @@ func loadSolrServers(config map[string]map[string]string) (map[string]map[string
         l4g.Error("Error connecting to db: %s\n", err.String())
         os.Exit(1)
     }
-    stmt, err := db.Prepare("Select apistring,core,server from cores where gosolr = ?")
+    stmt, err := db.Prepare("Select apistring,core,server,authstring from cores where gosolr = ?")
     if err != nil {
         l4g.Error("Error preparing statement: %s", err.String())
         os.Exit(1)
@@ -100,7 +105,7 @@ func loadSolrServers(config map[string]map[string]string) (map[string]map[string
     }    
     
     var solrrow SolrData
-    stmt.BindResult(&solrrow.apistring, &solrrow.core, &solrrow.server)
+    stmt.BindResult(&solrrow.apistring, &solrrow.core, &solrrow.server, &solrrow.authstring)
     solr_values := make(map[string]map[string]string)
     
     for {
@@ -110,7 +115,7 @@ func loadSolrServers(config map[string]map[string]string) (map[string]map[string
             os.Exit(1)
         }
         
-        solr_values[solrrow.apistring] = map[string]string{"core":solrrow.core, "server":solrrow.server}
+        solr_values[solrrow.apistring] = map[string]string{"core":solrrow.core, "server":solrrow.server, "authstring":solrrow.authstring}
         if eof {
             break
         }

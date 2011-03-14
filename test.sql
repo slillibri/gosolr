@@ -1,8 +1,8 @@
--- MySQL dump 10.11
+-- MySQL dump 10.13  Distrib 5.5.9, for osx10.6 (i386)
 --
 -- Host: localhost    Database: gosolr
 -- ------------------------------------------------------
--- Server version	5.0.84-log
+-- Server version	5.5.9
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -23,10 +23,11 @@ DROP TABLE IF EXISTS `cores`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `cores` (
-  `gosolr` varchar(255) default NULL,
-  `apistring` varchar(255) default NULL,
-  `core` varchar(255) default NULL,
-  `server` varchar(255) default NULL
+  `gosolr` varchar(255) DEFAULT NULL,
+  `apistring` varchar(255) DEFAULT NULL,
+  `core` varchar(255) DEFAULT NULL,
+  `server` varchar(255) DEFAULT NULL,
+  `authstring` varchar(255) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -36,7 +37,7 @@ CREATE TABLE `cores` (
 
 LOCK TABLES `cores` WRITE;
 /*!40000 ALTER TABLE `cores` DISABLE KEYS */;
-INSERT INTO `cores` VALUES ('Mio.local','123','rsolr','127.0.0.1:8080'),('Mio.local','abc','test2','127.0.0.1:8080');
+INSERT INTO `cores` VALUES ('Mio.local','123','rsolr','127.0.0.1:8080','12345'),('Mio.local','abc','test2','127.0.0.1:8080','12345');
 /*!40000 ALTER TABLE `cores` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -49,4 +50,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2011-01-28 15:06:35
+-- Dump completed on 2011-03-14 16:35:52

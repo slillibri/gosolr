@@ -25,7 +25,7 @@ var(
 type SolrPost struct{
     Apikey  string
     Body    string
-    
+    Authkey string
 }
 
 func handleRequest(w http.ResponseWriter, req *http.Request) {
@@ -47,7 +47,6 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
             return
         }
         r.Write(w)
-        return
     }
     if req.Method == "POST" {
         header := req.Header
@@ -75,26 +74,38 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
         l4g.Debug("io.ReadFull read %d bytes", len)
 
         var message SolrPost
-        json.Unmarshal(body, &message)
+        if ok := json.Unmarshal(body, &message); ok != nil {
+            l4g.Debug("Error unmarshalling json: %s", ok.String())
+            http.Error(w, "500 Internal Server Error", 500)
+            return
+        }
+        
         l4g.Debug("JSON message body: %s", message.Body)
+        
+        //Handle Auth
+        if solrServers[apiKey]["authstring"] != message.Authkey {
+            l4g.Error("Incorrect authkey")
+            http.Error(w, "Incorrect key", 401)
+            return
+        }
         
         //Post message to queue
         nc, err := net.Dial("tcp", "", config["stomp"]["host"])
         if err != nil {
             l4g.Error("Error conneceting to queue %s", err.String())
+            http.Error(w, "Unable to process request", 500)
             return
         }
+        
         c := stomp.Connect(nc, nil)
-        queue := fmt.Sprintf("/queue/%s", message.Apikey)
+        queue := fmt.Sprintf("/queue/%s", apiKey)
         l4g.Debug("Posting %s to queue %s", message.Body, queue)
         c.Send(queue, message.Body)
         c.Disconnect()
         
         //Return result to client
-        resp := fmt.Sprintf("Post content %s", body)
-        http.Error(w, resp, 501)
-    }
-    
+        http.Error(w, "ok", 200)
+    }    
 }
 
 func main() {
@@ -124,6 +135,7 @@ func main() {
     srv.WriteTimeout, _ = strconv.Atoi64(config["default"]["write_timeout"])
     
     l4g.Debug("%s", srv.Addr)
+    //If this were real, this should be TLS
     if err := srv.ListenAndServe(); err != nil {
         l4g.Error("Error starting server: %s", err.String())
         os.Exit(1)
