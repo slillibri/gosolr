@@ -23,7 +23,6 @@ var(
 )
 
 type SolrPost struct{
-    Apikey  string
     Body    string
     Authkey string
 }
@@ -50,53 +49,59 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
     }
     if req.Method == "POST" {
         header := req.Header
-        
+
         //Reject non-json data
         ct := header["Content-Type"][0]
         if ct != "application/json" {
             l4g.Error("Unsupported Content type %s", ct)
-            http.Error(w, "400 Unsupported format", 400)
+            http.Error(w, "Unsupported content type", 400)
             return
         }
-        
+
         //Handle length check
         length, _ := strconv.Atoi(header["Content-Length"][0])
         if length > 1024*1024 {
             l4g.Error("Post too large: %d", length)
-            http.Error(w, "400 Post too large", 400)
+            http.Error(w, "Post too large", 400)
             return
         }
         l4g.Debug("Post content-length: %d", length)
-        
+
         //TODO handle this error condition.
         body := make([]byte, length)
-        len, _ := io.ReadFull(req.Body, body)
+        len, ok := io.ReadFull(req.Body, body)
+        if ok != nil {
+            l4g.Debug("error reading io.ReadFull: %s", ok.String())
+            http.Error(w, "Internal Server Error", 500)
+            return
+        }
         l4g.Debug("io.ReadFull read %d bytes", len)
 
         var message SolrPost
         if ok := json.Unmarshal(body, &message); ok != nil {
             l4g.Debug("Error unmarshalling json: %s", ok.String())
-            http.Error(w, "500 Internal Server Error", 500)
+            http.Error(w, "Internal Server Error", 500)
             return
         }
-        
+
         l4g.Debug("JSON message body: %s", message.Body)
-        
+
         //Handle Auth
         if solrServers[apiKey]["authstring"] != message.Authkey {
             l4g.Error("Incorrect authkey")
-            http.Error(w, "Incorrect key", 401)
+            http.Error(w, "Unauthorized", 401)
             return
         }
-        
+
         //Post message to queue
         nc, err := net.Dial("tcp", "", config["stomp"]["host"])
         if err != nil {
             l4g.Error("Error conneceting to queue %s", err.String())
-            http.Error(w, "Unable to process request", 500)
+            http.Error(w, "Internal Server Error", 500)
             return
         }
-        
+
+        //Note, the stomp module doesn't return os.Error on Send()
         c := stomp.Connect(nc, nil)
         queue := fmt.Sprintf("/queue/%s", apiKey)
         l4g.Debug("Posting %s to queue %s", message.Body, queue)
@@ -128,11 +133,18 @@ func main() {
         http.HandleFunc(urlPath, handleRequest)
     }
     
+    var err os.Error
     var srv http.Server
     srv.Addr = fmt.Sprintf("%s:%s", config["default"]["host"], config["default"]["port"])
     srv.Handler = nil
-    srv.ReadTimeout, _ = strconv.Atoi64(config["default"]["read_timeout"])
-    srv.WriteTimeout, _ = strconv.Atoi64(config["default"]["write_timeout"])
+    if srv.ReadTimeout, err = strconv.Atoi64(config["default"]["read_timeout"]); err != nil {
+        l4g.Error("Configuration error. Bad read_timout value")
+        os.Exit(1)
+    }
+    if srv.WriteTimeout, err = strconv.Atoi64(config["default"]["write_timeout"]); err != nil {
+        l4g.Error("Configuration error. Bad write_timeout value")
+        os.Exit(1)
+    }
     
     l4g.Debug("%s", srv.Addr)
     //If this were real, this should be TLS
