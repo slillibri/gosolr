@@ -3,3 +3,4 @@
 gosolr
 _obj/
 test.go
+*.log
