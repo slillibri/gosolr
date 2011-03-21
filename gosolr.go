@@ -67,9 +67,9 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
         }
         l4g.Debug("Post content-length: %d", length)
 
-        //TODO handle this error condition.
         body := make([]byte, length)
         len, ok := io.ReadFull(req.Body, body)
+        l4g.Debug("Content-type of %d, but read %d bytes from body", length, len)
         if ok != nil {
             l4g.Debug("error reading io.ReadFull: %s", ok.String())
             http.Error(w, "Internal Server Error", 500)
@@ -146,7 +146,6 @@ func main() {
         os.Exit(1)
     }
     
-    l4g.Debug("%s", srv.Addr)
     //If this were real, this should be TLS
     if err := srv.ListenAndServe(); err != nil {
         l4g.Error("Error starting server: %s", err.String())
@@ -156,9 +155,8 @@ func main() {
 
 func prettyPrint(printMap map[string]map[string]string) {
     for key, tmpMap := range printMap {
-        fmt.Printf("%s -> ", key)
         for key2, value := range tmpMap {
-            fmt.Printf("\t%s -> %s\n", key2, value)
+            l4g.Debug("%s ->\t%s -> %s", key, key2, value)
         }
     }
 }
