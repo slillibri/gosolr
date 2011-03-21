@@ -7,7 +7,6 @@ package main
 import (
     "flag"
     "http"
-    "fmt"
     "io"
     "json"
     "os"
@@ -31,21 +30,19 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
     apiKey := req.URL.Path[1:]
     if req.Method == "GET" {
         //Need to have some cleanup and validation here
-        solrUrl := fmt.Sprintf("http://%s/solr/%s/select/?%s", solrServers[apiKey]["server"], solrServers[apiKey]["core"], req.URL.RawQuery)
+        solrUrl := "http://" + solrServers[apiKey]["server"] + "/solr/" + solrServers[apiKey]["core"] + "/select/?" + req.URL.RawQuery
         l4g.Debug("Proxying Request to %s for %s", solrUrl, apiKey)
         
-        r, _, err := http.Get(solrUrl)
-        defer r.Body.Close()
-        
-        l4g.Debug("Tomcat response: %s", r.Status)
-        
+        r, _, err := http.Get(solrUrl)                
         if err != nil {
             //Set actual error page here
             l4g.Error("Error: %s\n", err.String())
             http.Error(w, "500 Internal Server Error", 500)
             return
         }
+        l4g.Debug("Tomcat response: %s", r.Status)        
         r.Write(w)
+        r.Body.Close()
     }
     if req.Method == "POST" {
         header := req.Header
@@ -103,7 +100,7 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
 
         //Note, the stomp module doesn't return os.Error on Send()
         c := stomp.Connect(nc, nil)
-        queue := fmt.Sprintf("/queue/%s", apiKey)
+        queue := "/queue/" + apiKey
         l4g.Debug("Posting %s to queue %s", message.Body, queue)
         c.Send(queue, message.Body)
         c.Disconnect()
@@ -129,13 +126,13 @@ func main() {
     
     //Setup the http proxy stuff
     for apiKey := range solrServers {
-        urlPath := fmt.Sprintf("/%s", apiKey)
+        urlPath := "/" + apiKey
         http.HandleFunc(urlPath, handleRequest)
     }
     
     var err os.Error
     var srv http.Server
-    srv.Addr = fmt.Sprintf("%s:%s", config["default"]["host"], config["default"]["port"])
+    srv.Addr = config["default"]["host"] +":"+ config["default"]["port"]
     srv.Handler = nil
     if srv.ReadTimeout, err = strconv.Atoi64(config["default"]["read_timeout"]); err != nil {
         l4g.Error("Configuration error. Bad read_timout value")
