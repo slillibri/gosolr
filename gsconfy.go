@@ -57,7 +57,7 @@ func getValue(config *conf.ConfigFile, key string, namespace string, fail bool) 
     // I am a retarded function to save typeing...    
     str, err := config.GetString(namespace, key)
     if err != nil && fail {
-        //Exit if we can't find an expected value (these are all in the default namespace)
+        //Exit if we can't find an expected value
         l4g.Error("Error getting %s: %s\n", key, err.String())
         os.Exit(1)
     }
