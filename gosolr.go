@@ -66,13 +66,12 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
 
         body := make([]byte, length)
         len, ok := io.ReadFull(req.Body, body)
-        l4g.Debug("Content-type of %d, but read %d bytes from body", length, len)
         if ok != nil {
             l4g.Debug("error reading io.ReadFull: %s", ok.String())
             http.Error(w, "Internal Server Error", 500)
             return
         }
-        l4g.Debug("io.ReadFull read %d bytes", len)
+        l4g.Debug("Content-length of %d, but read %d bytes from body", length, len)
 
         var message SolrPost
         if ok := json.Unmarshal(body, &message); ok != nil {

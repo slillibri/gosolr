@@ -28,56 +28,38 @@ func loadConfig(file string) (map[string]map[string]string) {
     //Setup some default values - these are in the default namespace
     //There are 3 configuration namespaces default, database, and stomp
     values["default"] = map[string]string{"host":"localhost", "port":"80", "read_timeout":"0", "write_timeout":"0"}
-    values["database"] = map[string]string{"host":"localhost", "port":"3306"}
+    values["database"] = map[string]string{"host":"localhost", "port":"3306", "user":"", "pass":"", "name":""}
+    values["stomp"] = map[string]string{"host":""}
 
     l4g.Debug("Default vals: %v", values)
     
-    //TODO move stuff out of the default namespace
-    //Fetch default keys
-    keys := []string{"host", "port", "read_timeout", "write_timeout"}
-    fetchKeys(keys, "default", config, values)
-    
-    //Fetch the db keys
-    db_keys := []string{"host", "port", "user", "pass", "name"}
-    fetchKeys(db_keys, "database", config, values)
-    
-    //Fetch the stomp keys
-    stomp_keys := []string{"host"}
-    fetchKeys(stomp_keys, "stomp", config, values)
-    
+    //Read values from config
+    for namespace, _ := range values {
+        //If there is a default value it's ok if the config key doesn't exist
+        for key, _ := range values[namespace] {
+            value, _ := values[namespace][key]
+            if value != "" {
+                set := getValue(config, key, namespace, false)
+                if set != "" {
+                    values[namespace][key] = set
+                }
+            } else {
+                values[namespace][key] = getValue(config, key, namespace, true)
+            }
+        }
+    }
+
     l4g.Debug("Final values: %v", values)
     return values
-}
-
-func fetchKeys(keys []string, namespace string, config *conf.ConfigFile, values map[string]map[string]string) {
-    for i := 0; i < len(keys); i++ {
-        //Test if namespace exists, otherwise create it
-        if _, ns := values[namespace]; !ns {
-            l4g.Debug("Creating map for namespace %s", namespace)
-            values[namespace] = make(map[string]string)
-        }
-        //If there is a default value it's ok if the config key doesn't exist
-        _, ok := values[namespace][keys[i]]
-        if ok {
-            set := getValue(config, keys[i], namespace, false)
-            if set != "" {
-                values[namespace][keys[i]] = set
-            }
-        } else {
-            values[namespace][keys[i]] = getValue(config, keys[i], namespace, true)
-        }
-    }    
 }
 
 func getValue(config *conf.ConfigFile, key string, namespace string, fail bool) string {
     // I am a retarded function to save typeing...    
     str, err := config.GetString(namespace, key)
-    if err != nil {
-        if fail {
-	        //Exit if we can't find an expected value (these are all in the default namespace)
-            l4g.Error("Error getting %s: %s\n", key, err.String())
-            os.Exit(1)
-        }
+    if err != nil && fail {
+        //Exit if we can't find an expected value (these are all in the default namespace)
+        l4g.Error("Error getting %s: %s\n", key, err.String())
+        os.Exit(1)
     }
     return str
 }
