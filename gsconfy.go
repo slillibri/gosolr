@@ -27,6 +27,8 @@ func loadConfig(file string) (map[string]map[string]string) {
     
     //Setup some default values - these are in the default namespace
     //There are 3 configuration namespaces default, database, and stomp
+    //If the default value is "" that means it is required in the config file.
+    //An empty value in the config will not overwrite the default value
     values["default"] = map[string]string{"host":"localhost", "port":"80", "read_timeout":"0", "write_timeout":"0"}
     values["database"] = map[string]string{"host":"localhost", "port":"3306", "user":"", "pass":"", "name":""}
     values["stomp"] = map[string]string{"host":""}
@@ -34,10 +36,10 @@ func loadConfig(file string) (map[string]map[string]string) {
     l4g.Debug("Default vals: %v", values)
     
     //Read values from config
-    for namespace, _ := range values {
+    for namespace := range values {
         //If there is a default value it's ok if the config key doesn't exist
-        for key, _ := range values[namespace] {
-            value, _ := values[namespace][key]
+        for key := range values[namespace] {
+            value := values[namespace][key]
             if value != "" {
                 set := getValue(config, key, namespace, false)
                 if set != "" {
@@ -54,7 +56,6 @@ func loadConfig(file string) (map[string]map[string]string) {
 }
 
 func getValue(config *conf.ConfigFile, key string, namespace string, fail bool) string {
-    // I am a retarded function to save typeing...    
     str, err := config.GetString(namespace, key)
     if err != nil && fail {
         //Exit if we can't find an expected value
