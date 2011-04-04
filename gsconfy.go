@@ -38,8 +38,7 @@ func loadConfig(file string) (map[string]map[string]string) {
     //Read values from config
     for namespace := range values {
         //If there is a default value it's ok if the config key doesn't exist
-        for key := range values[namespace] {
-            value := values[namespace][key]
+        for key, value := range values[namespace] {
             if value != "" {
                 set := getValue(config, key, namespace, false)
                 if set != "" {
