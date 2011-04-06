@@ -28,6 +28,7 @@ type SolrPost struct{
 
 func handleRequest(w http.ResponseWriter, req *http.Request) {
     apiKey := req.URL.Path[1:]
+    
     if req.Method == "GET" {
         //Need to have some cleanup and validation here
         solrUrl := "http://" + solrServers[apiKey]["server"] + "/solr/" + solrServers[apiKey]["core"] + "/select/?" + req.URL.RawQuery
@@ -47,7 +48,7 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
     if req.Method == "POST" {
         header := req.Header
 
-        //Reject non-json data
+        //Reject non-json data - This check can probably be done at the processing layer
         ct := header["Content-Type"][0]
         if ct != "application/json" {
             l4g.Error("Unsupported Content type %s", ct)
@@ -56,7 +57,12 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
         }
 
         //Handle length check
-        length, _ := strconv.Atoi(header["Content-Length"][0])
+        length, err := strconv.Atoi(header["Content-Length"][0])
+        if err != nil {
+            l4g.Error("Error converting content-length header: %s" err.String())
+            http.Error(w, "Internal Server Error", 500)
+            return
+        }
         if length > 1024*1024 {
             l4g.Error("Post too large: %d", length)
             http.Error(w, "Post too large", 400)
