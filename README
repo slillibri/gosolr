@@ -1,1 +1,7 @@
 Just an experiment writing a simple server using Go
+
+Requires:
+    GoMySQL
+    goconf
+    gostomp
+    l4g

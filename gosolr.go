@@ -59,7 +59,7 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
         //Handle length check
         length, err := strconv.Atoi(header["Content-Length"][0])
         if err != nil {
-            l4g.Error("Error converting content-length header: %s" err.String())
+            l4g.Error("Error converting content-length header: %s", err.String())
             http.Error(w, "Internal Server Error", 500)
             return
         }
@@ -96,7 +96,7 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
         }
 
         //Post message to queue
-        nc, err := net.Dial("tcp", "", config["stomp"]["host"])
+        nc, err := net.Dial("tcp", "" + config["stomp"]["host"])
         if err != nil {
             l4g.Error("Error conneceting to queue %s", err.String())
             http.Error(w, "Internal Server Error", 500)
